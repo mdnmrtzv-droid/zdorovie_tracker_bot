@@ -5,15 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Трекер</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #f5f1e8;
-    --card: #ffffff;
-    --sage: #5c7a63;
-    --sage-light: #e4ebe1;
-    --ink: #2b2a26;
-    --ink-dim: #8a8579;
-    --border: #e2dcc9;
+    --bg: #10111a;
+    --card: #1a1c2a;
+    --blue: #a594d1;
+    --blue-light: rgba(165,148,209,0.16);
+    --ink: #e6e4f0;
+    --ink-dim: #8f8ea8;
+    --border: #2a2c3d;
+    --on-accent: #17121f;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -21,91 +26,142 @@
     min-height: 100%;
     background: var(--bg);
     color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   body { padding: 20px 16px 40px; }
   .wrap { max-width: 400px; margin: 0 auto; }
   header { margin-bottom: 20px; }
-  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 22px; margin: 0 0 4px; }
   #date-label { font-size: 14px; color: var(--ink-dim); margin: 0; }
-  .add-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 18px;
   }
+  .section-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 17px; margin: 0 0 12px; }
+  .section-label {
+    font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 14px; color: var(--ink-dim);
+    margin: 20px 0 10px; padding-top: 14px; border-top: 1px solid var(--border);
+  }
+  .section-label:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+  .add-row { display: flex; gap: 8px; margin-top: 12px; }
   #new-pill {
-    flex: 1;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 15px;
-    background: var(--card);
-    color: var(--ink);
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 999px;
+    font-size: 14px; background: var(--bg); color: var(--ink);
   }
-  #new-pill:focus { outline: 2px solid var(--sage); outline-offset: 1px; }
+  #new-pill:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
   #add-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: none;
-    background: var(--sage);
-    color: #fff;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
+    width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--blue);
+    color: var(--on-accent); font-size: 20px; line-height: 1; cursor: pointer; flex-shrink: 0;
   }
-  #pill-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 24px;
+
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
   }
-  .pill {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 14px 18px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--ink);
-    font-size: 15px;
-    cursor: pointer;
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-name { font-size: 15px; }
+  .switch { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--border); transition: background .2s; border-radius: 999px; cursor: pointer;
   }
-  .pill.taken {
-    background: var(--sage);
-    border-color: var(--sage);
-    color: #fff;
+  .slider:before {
+    content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px;
+    background: #fff; transition: transform .2s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.18);
   }
-  #empty {
-    display: none;
-    font-size: 14px;
-    color: var(--ink-dim);
-    padding: 8px 4px 24px;
+  .switch input:checked + .slider { background: var(--blue); }
+  .switch input:checked + .slider:before { transform: translateX(20px); }
+
+  #empty { display: none; font-size: 13px; color: var(--ink-dim); padding: 4px 0 0; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--ink); font-size: 13px; cursor: pointer;
   }
+  .chip.selected { background: var(--blue-light); color: var(--ink); border-color: var(--blue); }
+  .hint-list { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+
+  .label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .label-row label { margin-bottom: 0; }
+  .hint-toggle {
+    width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--bg); color: var(--ink-dim); font-size: 15px; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+  }
+  .hint-toggle.open { color: var(--blue); border-color: var(--blue); }
+
+  .row { margin-bottom: 14px; }
+  .row-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .section label { display: block; font-size: 13px; color: var(--ink-dim); margin-bottom: 6px; }
+  .section input[type="date"], .section input[type="time"], .section input[type="number"],
+  .section input[type="text"], .section textarea {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  .section textarea { resize: vertical; min-height: 52px; line-height: 1.5; }
+  .section input:focus, .section textarea:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  input[type="range"] { flex: 1; accent-color: var(--blue); }
+  .slider-val { font-size: 14px; font-weight: 600; min-width: 20px; text-align: center; }
+
+  .subfields { display: none; padding-top: 12px; }
+  .subfields.shown { display: block; }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+  .checkbox-row input { width: 16px; height: 16px; accent-color: var(--blue); flex-shrink: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 6px; text-align: center; }
+  .stat-num { font-size: 17px; font-weight: 600; }
+  .stat-label { font-size: 10px; color: var(--ink-dim); margin-top: 2px; line-height: 1.25; }
+
+  .export-btn {
+    width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--blue); font-size: 13.5px; cursor: pointer; margin-bottom: 16px;
+  }
+  #sleep-export-area {
+    display: none; width: 100%; min-height: 180px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--ink); font-family: monospace; font-size: 12px; padding: 10px;
+    margin-bottom: 16px; line-height: 1.6;
+  }
+
+  .save-btn {
+    width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--blue);
+    color: var(--on-accent); font-weight: 600; font-size: 14.5px; cursor: pointer; margin-top: 6px;
+  }
+  .save-btn:active { opacity: .85; }
+  .status-msg { font-size: 12.5px; color: var(--ink-dim); text-align: center; margin-top: 8px; min-height: 16px; }
+
+  .diary-title { font-size: 15px; font-weight: 600; margin: 22px 0 10px; }
+  .entry { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; cursor: pointer; }
+  .entry-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .entry-date { font-size: 14px; font-weight: 600; }
+  .entry-meta { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  .tags { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; max-width: 55%; }
+  .tag { font-size: 10.5px; padding: 3px 8px; border-radius: 20px; background: var(--blue-light); color: var(--blue); font-weight: 600; white-space: nowrap; }
+  .entry-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink-dim); line-height: 1.6; }
+  .entry-detail.open { display: block; }
+  .entry-detail p { margin: 0 0 6px; }
+  .entry-detail b { color: var(--ink); font-weight: 600; }
+  .delete-btn { font-size: 12px; color: var(--ink-dim); background: none; border: none; cursor: pointer; padding: 4px 0; text-decoration: underline; }
+
   #history-toggle {
-    background: none;
-    border: none;
-    color: var(--sage);
-    font-size: 14px;
-    padding: 6px 0;
-    cursor: pointer;
-    text-decoration: underline;
+    background: none; border: none; color: var(--blue); font-size: 14px; padding: 6px 0;
+    cursor: pointer; text-decoration: underline;
   }
-  #history {
-    display: none;
-    margin-top: 14px;
-    border-top: 1px solid var(--border);
-    padding-top: 14px;
-  }
-  .history-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 6px 0;
-    font-size: 13px;
-    color: var(--ink-dim);
-  }
-  .history-row span:first-child { color: var(--ink); }
+  #history { display: none; margin-top: 12px; }
+  .history-row { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { font-size: 13px; font-weight: 600; }
+  .history-summary { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -115,15 +171,183 @@
       <p id="date-label"></p>
     </header>
 
-    <div class="add-row">
-      <input id="new-pill" type="text" placeholder="Название (например, Магний)">
-      <button id="add-btn" aria-label="Добавить">+</button>
+    <div class="section">
+      <p class="section-title">Лекарства</p>
+      <div id="pill-list"></div>
+      <p id="empty">Пока пусто — добавь первое.</p>
+      <div class="add-row">
+        <input id="new-pill" type="text" placeholder="Добавить лекарство">
+        <button id="add-btn" aria-label="Добавить">+</button>
+      </div>
     </div>
 
-    <div id="pill-list"></div>
-    <p id="empty">Пока пусто — добавь первое, что хочешь отслеживать.</p>
+    <div class="section">
+      <p class="section-title">Эмоции</p>
 
-    <button id="history-toggle">Показать историю за 7 дней</button>
+      <div class="row row-pair">
+        <div><label for="e-date">Дата</label><input type="date" id="e-date"></div>
+        <div><label for="e-time">Время</label><input type="time" id="e-time"></div>
+      </div>
+
+      <div class="row">
+        <label for="e-event">Активирующее событие</label>
+        <textarea id="e-event" placeholder="Что произошло — можно оставить пустым, если события не было"></textarea>
+      </div>
+
+      <div class="row">
+        <label for="e-thoughts">Мысли</label>
+        <textarea id="e-thoughts" placeholder="О чём подумала в этот момент"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="label-row">
+          <label>Эмоции и чувства</label>
+          <button type="button" class="hint-toggle" id="emotion-hint-toggle" aria-label="Показать полный список">+</button>
+        </div>
+        <div class="chips" id="emotion-chips"></div>
+        <div class="chips hint-list" id="emotion-hint-list" style="display:none;"></div>
+        <textarea id="e-emotion-note" placeholder="Своими словами, если хочется добавить" style="margin-top:10px;"></textarea>
+      </div>
+
+      <div class="row">
+        <label for="e-actions">Действия</label>
+        <textarea id="e-actions" placeholder="Что сделала в ответ"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="label-row">
+          <label for="e-physical">Физиологические ощущения</label>
+          <button type="button" class="hint-toggle" id="physical-hint-toggle" aria-label="Показать полный список">+</button>
+        </div>
+        <div class="chips" id="physical-chips" style="display:none;"></div>
+        <textarea id="e-physical" placeholder="Тело: напряжение, сердцебиение и т.п." style="margin-top:10px;"></textarea>
+      </div>
+
+      <button type="button" class="save-btn" id="save-emotion-btn">Сохранить запись</button>
+      <div class="status-msg" id="emotion-status-msg"></div>
+
+      <p class="diary-title" id="emotion-diary-title" style="display:none;">История эмоций</p>
+      <div id="emotion-history-list"></div>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Дневник сна</p>
+
+      <div class="stats" id="sleep-stats" style="display:none;">
+        <div class="stat"><div class="stat-num" id="stat-total">0</div><div class="stat-label">записей</div></div>
+        <div class="stat"><div class="stat-num" id="stat-fear">0</div><div class="stat-label">беспричинный ужас</div></div>
+        <div class="stat"><div class="stat-num" id="stat-scream">0</div><div class="stat-label">крик (со слов)</div></div>
+        <div class="stat"><div class="stat-num" id="stat-walk">0</div><div class="stat-label">хождение</div></div>
+      </div>
+
+      <button type="button" class="export-btn" id="export-btn">Собрать сводку для врача</button>
+      <textarea id="sleep-export-area" readonly></textarea>
+
+      <div class="row row-pair">
+        <div><label for="f-date">Дата</label><input type="date" id="f-date"></div>
+        <div><label for="f-bedtime">Легла спать</label><input type="time" id="f-bedtime"></div>
+      </div>
+
+      <div class="row">
+        <label>Тревога / напряжение за день перед сном</label>
+        <div class="slider-row">
+          <input type="range" id="f-stress" min="1" max="5" value="3" step="1">
+          <span class="slider-val" id="f-stress-val">3</span>
+        </div>
+      </div>
+
+      <div class="row row-pair">
+        <div><label for="f-hours">Сон, часов (если помнишь)</label><input type="number" id="f-hours" min="0" max="14" step="0.5" placeholder="6.5"></div>
+        <div>
+          <label>Проснулась отдохнувшей</label>
+          <div class="slider-row">
+            <input type="range" id="f-rested" min="1" max="5" value="3" step="1">
+            <span class="slider-val" id="f-rested-val">3</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">Содержание сна</div>
+      <div class="row">
+        <label>Запомнился ли сон</label>
+        <div class="chips" id="recall-group">
+          <button type="button" class="chip selected" data-recall="none">Не помню</button>
+          <button type="button" class="chip" data-recall="vague">Смутно</button>
+          <button type="button" class="chip" data-recall="vivid">В деталях</button>
+        </div>
+      </div>
+      <div class="subfields" id="recall-fields">
+        <div class="row"><label for="f-content">Сюжет, своими словами</label><textarea id="f-content" placeholder="Коротко — необязательно"></textarea></div>
+        <div class="row">
+          <label>Повторяющиеся мотивы</label>
+          <div class="chips" id="motif-group">
+            <button type="button" class="chip" data-motif="море / шторм">Море / шторм</button>
+            <button type="button" class="chip" data-motif="беременность / замужество">Беременность / замужество</button>
+            <button type="button" class="chip" data-motif="смерть близких">Смерть близких</button>
+          </div>
+        </div>
+        <div class="row"><label for="f-motif-other">Другой мотив (если есть)</label><input type="text" id="f-motif-other" placeholder="например, погоня, экзамен..."></div>
+      </div>
+
+      <div class="section-label">Беспричинный ужас при засыпании</div>
+      <div class="chips">
+        <button type="button" class="chip" id="fear-yes">Был</button>
+        <button type="button" class="chip selected" id="fear-no">Не было</button>
+      </div>
+      <div class="subfields" id="fear-fields">
+        <div class="row" style="margin-top:12px;">
+          <label>Интенсивность</label>
+          <div class="slider-row">
+            <input type="range" id="f-fear-intensity" min="1" max="5" value="3" step="1">
+            <span class="slider-val" id="f-fear-intensity-val">3</span>
+          </div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" id="f-fear-physical"><span>Были и телесные ощущения (тяжесть, скованность)</span></label>
+      </div>
+
+      <div class="section-label">Зрительные / световые феномены при засыпании</div>
+      <div class="chips">
+        <button type="button" class="chip" id="halluc-yes">Были</button>
+        <button type="button" class="chip selected" id="halluc-no">Не было</button>
+      </div>
+      <div class="subfields" id="halluc-fields">
+        <label class="checkbox-row" style="margin-top:12px;"><input type="checkbox" id="f-halluc-fear"><span>Вызвали испуг / ужас</span></label>
+        <div class="row" style="margin-top:12px;"><label for="f-halluc-desc">Что именно видела</label><textarea id="f-halluc-desc" placeholder="Необязательно"></textarea></div>
+      </div>
+
+      <div class="section-label">Со слов других</div>
+      <div class="row">
+        <label>Кричала во сне</label>
+        <div class="chips">
+          <button type="button" class="chip" id="scream-yes">Да</button>
+          <button type="button" class="chip selected" id="scream-no">Нет</button>
+        </div>
+      </div>
+      <div class="subfields" id="scream-fields">
+        <div class="row"><label for="f-scream-who">Кто сказал</label><input type="text" id="f-scream-who" placeholder="подруга, мама..."></div>
+      </div>
+      <div class="row">
+        <label>Ходила во сне</label>
+        <div class="chips">
+          <button type="button" class="chip" id="walk-yes">Да</button>
+          <button type="button" class="chip selected" id="walk-no">Нет</button>
+        </div>
+      </div>
+      <div class="subfields" id="walk-fields">
+        <div class="row"><label for="f-walk-detail">Что рассказали</label><textarea id="f-walk-detail" placeholder="Необязательно"></textarea></div>
+      </div>
+
+      <div class="section-label">Заметки</div>
+      <div class="row"><textarea id="f-notes" placeholder="Всё остальное важное"></textarea></div>
+
+      <button type="button" class="save-btn" id="save-sleep-btn">Сохранить запись</button>
+      <div class="status-msg" id="sleep-status-msg"></div>
+
+      <p class="diary-title" id="diary-title" style="display:none;">История сна</p>
+      <div id="sleep-history-list"></div>
+    </div>
+
+    <button id="history-toggle">Показать историю приёма за 7 дней</button>
     <div id="history"></div>
   </div>
 
@@ -131,8 +355,26 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
 
-  var STORAGE_KEY = 'daily-tracker-v1';
-  var state = { pills: [], log: {} };
+  var STORAGE_KEY = 'daily-tracker-v2';
+  var DEFAULT_PILLS = ['Визанна', 'Витамин Д', 'Магний'];
+  var MOOD_TAGS = ['Спокойствие', 'Радость', 'Грусть', 'Тревога', 'Раздражение', 'Усталость'];
+  var MOOD_TAGS_EXTRA = [
+    'Вина', 'Стыд', 'Обида', 'Разочарование', 'Одиночество', 'Беспомощность',
+    'Растерянность', 'Смущение', 'Ревность', 'Зависть', 'Гнев', 'Страх',
+    'Паника', 'Отвращение', 'Удивление', 'Интерес', 'Вдохновение', 'Благодарность',
+    'Гордость', 'Нежность', 'Облегчение', 'Скука', 'Ностальгия', 'Надежда'
+  ];
+  var PHYSICAL_TAGS = [
+    'Напряжение в теле', 'Учащённое сердцебиение', 'Потливость', 'Дрожь', 'Тошнота',
+    'Головокружение', 'Ком в горле', 'Сжатие в груди', 'Тяжесть', 'Озноб / холод',
+    'Жар', 'Онемение', 'Поверхностное дыхание', 'Сухость во рту', 'Мышечное напряжение',
+    'Усталость в теле', 'Боль в животе', 'Дрожь в руках', 'Слабость', 'Покалывание'
+  ];
+
+  var state = { pills: DEFAULT_PILLS.slice(), log: {}, emotionEntries: [], sleepEntries: [] };
+  var sleepForm = { fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
+  var emotionTagsSelected = [];
+  var physicalTagsSelected = [];
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
   function keyFor(date) {
@@ -142,6 +384,11 @@
   function formatDate(date) {
     var months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
     return date.getDate() + ' ' + months[date.getMonth()];
+  }
+  function escapeHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 
   function saveState() {
@@ -154,25 +401,35 @@
   }
 
   function loadState(done) {
+    function apply(value) {
+      if (value) {
+        try {
+          var parsed = JSON.parse(value);
+          state.pills = parsed.pills || state.pills;
+          state.log = parsed.log || {};
+          state.emotionEntries = Array.isArray(parsed.emotionEntries) ? parsed.emotionEntries : [];
+          state.sleepEntries = Array.isArray(parsed.sleepEntries) ? parsed.sleepEntries : [];
+        } catch (e) {}
+      }
+      done();
+    }
     if (tg && tg.CloudStorage) {
       tg.CloudStorage.getItem(STORAGE_KEY, function (err, value) {
-        if (!err && value) { try { state = JSON.parse(value); } catch (e) {} }
-        done();
+        apply(!err && value ? value : null);
       });
     } else {
-      var value = localStorage.getItem(STORAGE_KEY);
-      if (value) { try { state = JSON.parse(value); } catch (e) {} }
-      done();
+      apply(localStorage.getItem(STORAGE_KEY));
     }
   }
 
-  function toggle(name) {
+  function togglePill(name) {
     var key = todayKey();
     if (!state.log[key]) state.log[key] = [];
     var idx = state.log[key].indexOf(name);
     if (idx === -1) state.log[key].push(name); else state.log[key].splice(idx, 1);
     saveState();
-    render();
+    renderPills();
+    renderHistory();
   }
 
   function addPill() {
@@ -182,7 +439,42 @@
     if (state.pills.indexOf(name) === -1) state.pills.push(name);
     input.value = '';
     saveState();
-    render();
+    renderPills();
+  }
+
+  function renderPills() {
+    var key = todayKey();
+    var takenToday = state.log[key] || [];
+    var list = document.getElementById('pill-list');
+    list.innerHTML = '';
+    state.pills.forEach(function (name) {
+      var taken = takenToday.indexOf(name) !== -1;
+      var row = document.createElement('div');
+      row.className = 'toggle-row';
+      var label = document.createElement('span');
+      label.className = 'toggle-name';
+      label.textContent = name;
+      var switchWrap = document.createElement('label');
+      switchWrap.className = 'switch';
+      var input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = taken;
+      input.addEventListener('change', function () { togglePill(name); });
+      var slider = document.createElement('span');
+      slider.className = 'slider';
+      switchWrap.appendChild(input);
+      switchWrap.appendChild(slider);
+      row.appendChild(label);
+      row.appendChild(switchWrap);
+      list.appendChild(row);
+    });
+    document.getElementById('empty').style.display = state.pills.length ? 'none' : 'block';
+  }
+
+  function summaryFor(date) {
+    var key = keyFor(date);
+    var taken = state.log[key] || [];
+    return state.pills.length ? (taken.length + ' из ' + state.pills.length) : 'нет записей';
   }
 
   function renderHistory() {
@@ -191,37 +483,405 @@
     for (var i = 1; i <= 7; i++) {
       var d = new Date();
       d.setDate(d.getDate() - i);
-      var key = keyFor(d);
-      var taken = state.log[key] || [];
       var row = document.createElement('div');
       row.className = 'history-row';
-      var left = document.createElement('span');
-      left.textContent = formatDate(d);
-      var right = document.createElement('span');
-      right.textContent = state.pills.length
-        ? taken.length + ' из ' + state.pills.length
-        : '—';
-      row.appendChild(left);
-      row.appendChild(right);
+      var dateEl = document.createElement('div');
+      dateEl.className = 'history-date';
+      dateEl.textContent = formatDate(d);
+      var summaryEl = document.createElement('div');
+      summaryEl.className = 'history-summary';
+      summaryEl.textContent = summaryFor(d);
+      row.appendChild(dateEl);
+      row.appendChild(summaryEl);
       box.appendChild(row);
     }
   }
 
-  function render() {
-    var key = todayKey();
-    var takenToday = state.log[key] || [];
-    var list = document.getElementById('pill-list');
-    list.innerHTML = '';
-    state.pills.forEach(function (name) {
-      var taken = takenToday.indexOf(name) !== -1;
-      var item = document.createElement('button');
-      item.className = 'pill' + (taken ? ' taken' : '');
-      item.textContent = (taken ? '✓ ' : '') + name;
-      item.onclick = function () { toggle(name); };
-      list.appendChild(item);
+  // --- Emotions (ABC journal) ---
+
+  function renderEmotionChips() {
+    var box = document.getElementById('emotion-chips');
+    box.innerHTML = '';
+    MOOD_TAGS.forEach(function (tag) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (emotionTagsSelected.indexOf(tag) !== -1 ? ' selected' : '');
+      chip.textContent = tag;
+      chip.addEventListener('click', function () {
+        var idx = emotionTagsSelected.indexOf(tag);
+        if (idx === -1) emotionTagsSelected.push(tag); else emotionTagsSelected.splice(idx, 1);
+        renderEmotionChips();
+        renderEmotionHintList();
+      });
+      box.appendChild(chip);
     });
-    document.getElementById('empty').style.display = state.pills.length ? 'none' : 'block';
+  }
+
+  function renderEmotionHintList() {
+    var box = document.getElementById('emotion-hint-list');
+    box.innerHTML = '';
+    MOOD_TAGS_EXTRA.forEach(function (tag) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (emotionTagsSelected.indexOf(tag) !== -1 ? ' selected' : '');
+      chip.textContent = tag;
+      chip.addEventListener('click', function () {
+        var idx = emotionTagsSelected.indexOf(tag);
+        if (idx === -1) emotionTagsSelected.push(tag); else emotionTagsSelected.splice(idx, 1);
+        renderEmotionChips();
+        renderEmotionHintList();
+      });
+      box.appendChild(chip);
+    });
+  }
+
+  function renderPhysicalChips() {
+    var box = document.getElementById('physical-chips');
+    box.innerHTML = '';
+    PHYSICAL_TAGS.forEach(function (tag) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (physicalTagsSelected.indexOf(tag) !== -1 ? ' selected' : '');
+      chip.textContent = tag;
+      chip.addEventListener('click', function () {
+        var idx = physicalTagsSelected.indexOf(tag);
+        if (idx === -1) physicalTagsSelected.push(tag); else physicalTagsSelected.splice(idx, 1);
+        renderPhysicalChips();
+      });
+      box.appendChild(chip);
+    });
+  }
+
+  function setupHintToggle(btnId, listId, renderFn) {
+    var btn = document.getElementById(btnId);
+    btn.addEventListener('click', function () {
+      var box = document.getElementById(listId);
+      var open = box.style.display !== 'none';
+      box.style.display = open ? 'none' : 'flex';
+      btn.textContent = open ? '+' : '\u2212';
+      btn.classList.toggle('open', !open);
+      if (!open) renderFn();
+    });
+  }
+  setupHintToggle('emotion-hint-toggle', 'emotion-hint-list', renderEmotionHintList);
+  setupHintToggle('physical-hint-toggle', 'physical-chips', renderPhysicalChips);
+
+  function closeHintLists() {
+    ['emotion-hint-list', 'physical-chips'].forEach(function (id) {
+      document.getElementById(id).style.display = 'none';
+    });
+    ['emotion-hint-toggle', 'physical-hint-toggle'].forEach(function (id) {
+      var btn = document.getElementById(id);
+      btn.textContent = '+';
+      btn.classList.remove('open');
+    });
+  }
+
+  function resetEmotionForm() {
+    document.getElementById('e-date').value = todayKey();
+    document.getElementById('e-time').value = '';
+    document.getElementById('e-event').value = '';
+    document.getElementById('e-thoughts').value = '';
+    document.getElementById('e-emotion-note').value = '';
+    document.getElementById('e-actions').value = '';
+    document.getElementById('e-physical').value = '';
+    emotionTagsSelected = [];
+    physicalTagsSelected = [];
+    renderEmotionChips();
+    closeHintLists();
+  }
+
+  function saveEmotionEntry() {
+    var date = document.getElementById('e-date').value;
+    if (!date) {
+      document.getElementById('emotion-status-msg').textContent = 'Укажи дату';
+      return;
+    }
+    var entry = {
+      id: Date.now(),
+      date: date,
+      time: document.getElementById('e-time').value,
+      event: document.getElementById('e-event').value.trim(),
+      thoughts: document.getElementById('e-thoughts').value.trim(),
+      emotionTags: emotionTagsSelected.slice(),
+      emotionNote: document.getElementById('e-emotion-note').value.trim(),
+      actions: document.getElementById('e-actions').value.trim(),
+      physicalTags: physicalTagsSelected.slice(),
+      physical: document.getElementById('e-physical').value.trim()
+    };
+    state.emotionEntries.unshift(entry);
+    saveState();
+    document.getElementById('emotion-status-msg').textContent = 'Сохранено';
+    setTimeout(function () { document.getElementById('emotion-status-msg').textContent = ''; }, 2000);
+    resetEmotionForm();
+    renderEmotionDiary();
+    renderHistory();
+  }
+
+  function deleteEmotionEntry(id) {
+    state.emotionEntries = state.emotionEntries.filter(function (e) { return e.id !== id; });
+    saveState();
+    renderEmotionDiary();
+  }
+
+  function renderEmotionDiary() {
+    var total = state.emotionEntries.length;
+    document.getElementById('emotion-diary-title').style.display = total ? 'block' : 'none';
+    var list = document.getElementById('emotion-history-list');
+    list.innerHTML = '';
+    state.emotionEntries.forEach(function (e) {
+      var d = new Date(e.date);
+      var dateFmt = formatDate(d) + (e.time ? ', ' + e.time : '');
+      var metaBits = [];
+      if (e.emotionTags && e.emotionTags.length) metaBits.push(e.emotionTags.join(', '));
+      if (e.event) metaBits.push('есть событие');
+
+      var detail = '';
+      if (e.event) detail += '<p><b>Активирующее событие:</b> ' + escapeHtml(e.event) + '</p>';
+      if (e.thoughts) detail += '<p><b>Мысли:</b> ' + escapeHtml(e.thoughts) + '</p>';
+      if (e.emotionTags && e.emotionTags.length) detail += '<p><b>Эмоции:</b> ' + e.emotionTags.map(escapeHtml).join(', ') + '</p>';
+      if (e.emotionNote) detail += '<p><b>Про эмоции:</b> ' + escapeHtml(e.emotionNote) + '</p>';
+      if (e.actions) detail += '<p><b>Действия:</b> ' + escapeHtml(e.actions) + '</p>';
+      if (e.physicalTags && e.physicalTags.length) {
+        detail += '<p><b>Физиологические ощущения:</b> ' + e.physicalTags.map(escapeHtml).join(', ') + (e.physical ? ' — ' + escapeHtml(e.physical) : '') + '</p>';
+      } else if (e.physical) {
+        detail += '<p><b>Физиологические ощущения:</b> ' + escapeHtml(e.physical) + '</p>';
+      }
+      if (!detail) detail = '<p>Без подробностей</p>';
+
+      var entryEl = document.createElement('div');
+      entryEl.className = 'entry';
+      entryEl.innerHTML =
+        '<div class="entry-top">' +
+          '<div><div class="entry-date">' + dateFmt + '</div><div class="entry-meta">' + (metaBits.join(' · ') || 'без деталей') + '</div></div>' +
+        '</div>' +
+        '<div class="entry-detail" id="edetail-' + e.id + '">' + detail + '<button type="button" class="delete-btn" data-id="' + e.id + '">Удалить запись</button></div>';
+      entryEl.addEventListener('click', function (ev) {
+        if (ev.target.classList.contains('delete-btn')) return;
+        var d2 = document.getElementById('edetail-' + e.id);
+        if (d2) d2.classList.toggle('open');
+      });
+      list.appendChild(entryEl);
+      entryEl.querySelector('.delete-btn').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        deleteEmotionEntry(e.id);
+      });
+    });
+  }
+
+  document.getElementById('save-emotion-btn').addEventListener('click', saveEmotionEntry);
+  document.getElementById('e-date').value = todayKey();
+  renderEmotionChips();
+
+  // --- Sleep diary ---
+
+  document.querySelectorAll('#recall-group .chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#recall-group .chip').forEach(function (b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      sleepForm.recall = btn.dataset.recall;
+      document.getElementById('recall-fields').classList.toggle('shown', sleepForm.recall !== 'none');
+    });
+  });
+
+  document.querySelectorAll('#motif-group .chip').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var m = btn.dataset.motif;
+      btn.classList.toggle('selected');
+      var idx = sleepForm.motifs.indexOf(m);
+      if (idx === -1) sleepForm.motifs.push(m); else sleepForm.motifs.splice(idx, 1);
+    });
+  });
+
+  function setSleepBool(key, val, yesEl, noEl, fieldsEl) {
+    sleepForm[key] = val;
+    yesEl.classList.toggle('selected', val);
+    noEl.classList.toggle('selected', !val);
+    fieldsEl.classList.toggle('shown', val);
+  }
+  ['fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
+    var yesEl = document.getElementById(key + '-yes');
+    var noEl = document.getElementById(key + '-no');
+    var fieldsEl = document.getElementById(key + '-fields');
+    yesEl.addEventListener('click', function () { setSleepBool(key, true, yesEl, noEl, fieldsEl); });
+    noEl.addEventListener('click', function () { setSleepBool(key, false, yesEl, noEl, fieldsEl); });
+  });
+
+  ['f-stress', 'f-rested', 'f-fear-intensity'].forEach(function (id) {
+    var input = document.getElementById(id);
+    var out = document.getElementById(id + '-val');
+    input.addEventListener('input', function () { out.textContent = input.value; });
+  });
+
+  document.getElementById('f-date').value = todayKey();
+
+  function resetSleepForm() {
+    document.getElementById('f-date').value = todayKey();
+    document.getElementById('f-bedtime').value = '';
+    document.getElementById('f-stress').value = 3; document.getElementById('f-stress-val').textContent = '3';
+    document.getElementById('f-hours').value = '';
+    document.getElementById('f-rested').value = 3; document.getElementById('f-rested-val').textContent = '3';
+    document.getElementById('f-content').value = '';
+    document.getElementById('f-motif-other').value = '';
+    document.querySelectorAll('#motif-group .chip').forEach(function (b) { b.classList.remove('selected'); });
+    document.querySelectorAll('#recall-group .chip').forEach(function (b) { b.classList.remove('selected'); });
+    document.querySelector('#recall-group .chip[data-recall="none"]').classList.add('selected');
+    document.getElementById('recall-fields').classList.remove('shown');
+    document.getElementById('f-fear-intensity').value = 3; document.getElementById('f-fear-intensity-val').textContent = '3';
+    document.getElementById('f-fear-physical').checked = false;
+    document.getElementById('f-halluc-fear').checked = false;
+    document.getElementById('f-halluc-desc').value = '';
+    document.getElementById('f-scream-who').value = '';
+    document.getElementById('f-walk-detail').value = '';
+    document.getElementById('f-notes').value = '';
+    sleepForm = { fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
+    ['fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
+      document.getElementById(key + '-yes').classList.remove('selected');
+      document.getElementById(key + '-no').classList.add('selected');
+      document.getElementById(key + '-fields').classList.remove('shown');
+    });
+  }
+
+  function saveSleepEntry() {
+    var date = document.getElementById('f-date').value;
+    if (!date) {
+      document.getElementById('sleep-status-msg').textContent = 'Укажи дату';
+      return;
+    }
+    var motifOther = document.getElementById('f-motif-other').value.trim();
+    var motifs = sleepForm.motifs.slice();
+    if (motifOther) motifs.push(motifOther);
+    var entry = {
+      id: Date.now(),
+      date: date,
+      bedtime: document.getElementById('f-bedtime').value,
+      stress: Number(document.getElementById('f-stress').value),
+      hoursPrev: document.getElementById('f-hours').value || null,
+      rested: Number(document.getElementById('f-rested').value),
+      recall: sleepForm.recall,
+      content: sleepForm.recall !== 'none' ? document.getElementById('f-content').value.trim() : '',
+      motifs: sleepForm.recall !== 'none' ? motifs : [],
+      fear: sleepForm.fear,
+      fearIntensity: sleepForm.fear ? Number(document.getElementById('f-fear-intensity').value) : null,
+      fearPhysical: sleepForm.fear ? document.getElementById('f-fear-physical').checked : false,
+      halluc: sleepForm.halluc,
+      hallucFear: sleepForm.halluc ? document.getElementById('f-halluc-fear').checked : false,
+      hallucDesc: sleepForm.halluc ? document.getElementById('f-halluc-desc').value.trim() : '',
+      scream: sleepForm.scream,
+      screamWho: sleepForm.scream ? document.getElementById('f-scream-who').value.trim() : '',
+      walk: sleepForm.walk,
+      walkDetail: sleepForm.walk ? document.getElementById('f-walk-detail').value.trim() : '',
+      notes: document.getElementById('f-notes').value.trim()
+    };
+    state.sleepEntries.unshift(entry);
+    saveState();
+    document.getElementById('sleep-status-msg').textContent = 'Сохранено';
+    setTimeout(function () { document.getElementById('sleep-status-msg').textContent = ''; }, 2000);
+    resetSleepForm();
+    renderSleepDiary();
+  }
+
+  function deleteSleepEntry(id) {
+    state.sleepEntries = state.sleepEntries.filter(function (e) { return e.id !== id; });
+    saveState();
+    renderSleepDiary();
+  }
+
+  function renderSleepDiary() {
+    var total = state.sleepEntries.length;
+    document.getElementById('sleep-stats').style.display = total ? 'grid' : 'none';
+    document.getElementById('diary-title').style.display = total ? 'block' : 'none';
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-fear').textContent = state.sleepEntries.filter(function (e) { return e.fear; }).length;
+    document.getElementById('stat-scream').textContent = state.sleepEntries.filter(function (e) { return e.scream; }).length;
+    document.getElementById('stat-walk').textContent = state.sleepEntries.filter(function (e) { return e.walk; }).length;
+
+    var list = document.getElementById('sleep-history-list');
+    list.innerHTML = '';
+    state.sleepEntries.forEach(function (e) {
+      var d = new Date(e.date);
+      var dateFmt = formatDate(d);
+      var metaBits = ['тревога ' + e.stress + '/5', 'отдых ' + e.rested + '/5'];
+      var recallLabel = e.recall === 'vivid' ? 'помню в деталях' : e.recall === 'vague' ? 'помню смутно' : 'не помню';
+      metaBits.push(recallLabel);
+
+      var tagsHtml = '';
+      if (e.fear) tagsHtml += '<span class="tag">ужас</span>';
+      if (e.halluc) tagsHtml += '<span class="tag">феномены</span>';
+      if (e.scream) tagsHtml += '<span class="tag">крик</span>';
+      if (e.walk) tagsHtml += '<span class="tag">хождение</span>';
+
+      var detail = '<p><b>Тревога перед сном:</b> ' + e.stress + '/5, <b>отдых утром:</b> ' + e.rested + '/5</p>';
+      if (e.hoursPrev) detail += '<p><b>Сон:</b> ' + e.hoursPrev + ' ч</p>';
+      detail += '<p><b>Запомнился сон:</b> ' + recallLabel + '</p>';
+      if (e.content) detail += '<p><b>Сюжет:</b> ' + escapeHtml(e.content) + '</p>';
+      if (e.motifs && e.motifs.length) detail += '<p><b>Мотивы:</b> ' + e.motifs.map(escapeHtml).join(', ') + '</p>';
+      if (e.fear) detail += '<p><b>Беспричинный ужас:</b> интенсивность ' + e.fearIntensity + '/5' + (e.fearPhysical ? ', с телесными ощущениями' : ', без телесных ощущений') + '</p>';
+      if (e.halluc) detail += '<p><b>Зрительные/световые феномены:</b> ' + (e.hallucFear ? 'вызвали испуг' : 'без испуга') + (e.hallucDesc ? ' — ' + escapeHtml(e.hallucDesc) : '') + '</p>';
+      if (e.scream) detail += '<p><b>Крик во сне:</b> со слов ' + (escapeHtml(e.screamWho) || '—') + '</p>';
+      if (e.walk) detail += '<p><b>Хождение во сне:</b> ' + (escapeHtml(e.walkDetail) || 'без подробностей') + '</p>';
+      if (e.notes) detail += '<p><b>Заметки:</b> ' + escapeHtml(e.notes) + '</p>';
+
+      var entryEl = document.createElement('div');
+      entryEl.className = 'entry';
+      entryEl.innerHTML =
+        '<div class="entry-top">' +
+          '<div><div class="entry-date">' + dateFmt + '</div><div class="entry-meta">' + metaBits.join(' · ') + '</div></div>' +
+          '<div class="tags">' + tagsHtml + '</div>' +
+        '</div>' +
+        '<div class="entry-detail" id="detail-' + e.id + '">' + detail + '<button type="button" class="delete-btn" data-id="' + e.id + '">Удалить запись</button></div>';
+      entryEl.addEventListener('click', function (ev) {
+        if (ev.target.classList.contains('delete-btn')) return;
+        var d2 = document.getElementById('detail-' + e.id);
+        if (d2) d2.classList.toggle('open');
+      });
+      list.appendChild(entryEl);
+      entryEl.querySelector('.delete-btn').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        deleteSleepEntry(e.id);
+      });
+    });
+  }
+
+  function exportSleepSummary() {
+    var area = document.getElementById('sleep-export-area');
+    if (!state.sleepEntries.length) {
+      area.style.display = 'block';
+      area.value = 'Записей пока нет.';
+      return;
+    }
+    var sorted = state.sleepEntries.slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var out = 'ДНЕВНИК СНА — сводка\nЗаписей: ' + sorted.length + '\n\n';
+    sorted.forEach(function (e) {
+      out += '— ' + e.date + (e.bedtime ? ' (легла в ' + e.bedtime + ')' : '') + ' —\n';
+      out += 'Тревога перед сном: ' + e.stress + '/5. Отдых утром: ' + e.rested + '/5.';
+      if (e.hoursPrev) out += ' Сон: ' + e.hoursPrev + ' ч.';
+      out += '\n';
+      var recallLabel = e.recall === 'vivid' ? 'помню в деталях' : e.recall === 'vague' ? 'помню смутно' : 'не помню';
+      out += 'Сон: ' + recallLabel + '.\n';
+      if (e.content) out += 'Сюжет: ' + e.content + '\n';
+      if (e.motifs && e.motifs.length) out += 'Мотивы: ' + e.motifs.join(', ') + '\n';
+      if (e.fear) out += 'Беспричинный ужас при засыпании: интенсивность ' + e.fearIntensity + '/5' + (e.fearPhysical ? ', с телесными ощущениями' : ', без телесных ощущений') + '\n';
+      if (e.halluc) out += 'Зрительные/световые феномены: да' + (e.hallucFear ? ', вызвали испуг' : '') + (e.hallucDesc ? ' — ' + e.hallucDesc : '') + '\n';
+      if (e.scream) out += 'Крик во сне (со слов ' + (e.screamWho || '—') + ')\n';
+      if (e.walk) out += 'Хождение во сне' + (e.walkDetail ? ': ' + e.walkDetail : '') + '\n';
+      if (e.notes) out += 'Заметки: ' + e.notes + '\n';
+      out += '\n';
+    });
+    area.style.display = 'block';
+    area.value = out;
+    area.focus();
+    area.select();
+  }
+
+  document.getElementById('save-sleep-btn').addEventListener('click', saveSleepEntry);
+  document.getElementById('export-btn').addEventListener('click', exportSleepSummary);
+
+  function renderAll() {
     document.getElementById('date-label').textContent = formatDate(new Date());
+    renderPills();
+    renderEmotionDiary();
+    renderSleepDiary();
     renderHistory();
   }
 
@@ -233,10 +893,10 @@
     var box = document.getElementById('history');
     var visible = box.style.display === 'block';
     box.style.display = visible ? 'none' : 'block';
-    this.textContent = visible ? 'Показать историю за 7 дней' : 'Скрыть историю';
+    this.textContent = visible ? 'Показать историю приёма за 7 дней' : 'Скрыть историю';
   });
 
-  loadState(render);
+  loadState(renderAll);
 </script>
 </body>
 </html>
