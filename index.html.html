@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Трекер</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #f5f1e8;
+    --card: #ffffff;
+    --sage: #5c7a63;
+    --sage-light: #e4ebe1;
+    --ink: #2b2a26;
+    --ink-dim: #8a8579;
+    --border: #e2dcc9;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  body { padding: 20px 16px 40px; }
+  .wrap { max-width: 400px; margin: 0 auto; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  #date-label { font-size: 14px; color: var(--ink-dim); margin: 0; }
+  .add-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  #new-pill {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 15px;
+    background: var(--card);
+    color: var(--ink);
+  }
+  #new-pill:focus { outline: 2px solid var(--sage); outline-offset: 1px; }
+  #add-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--sage);
+    color: #fff;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  #pill-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .pill {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 14px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--ink);
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .pill.taken {
+    background: var(--sage);
+    border-color: var(--sage);
+    color: #fff;
+  }
+  #empty {
+    display: none;
+    font-size: 14px;
+    color: var(--ink-dim);
+    padding: 8px 4px 24px;
+  }
+  #history-toggle {
+    background: none;
+    border: none;
+    color: var(--sage);
+    font-size: 14px;
+    padding: 6px 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  #history {
+    display: none;
+    margin-top: 14px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .history-row span:first-child { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Трекер</h1>
+      <p id="date-label"></p>
+    </header>
+
+    <div class="add-row">
+      <input id="new-pill" type="text" placeholder="Название (например, Магний)">
+      <button id="add-btn" aria-label="Добавить">+</button>
+    </div>
+
+    <div id="pill-list"></div>
+    <p id="empty">Пока пусто — добавь первое, что хочешь отслеживать.</p>
+
+    <button id="history-toggle">Показать историю за 7 дней</button>
+    <div id="history"></div>
+  </div>
+
+<script>
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  var STORAGE_KEY = 'daily-tracker-v1';
+  var state = { pills: [], log: {} };
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function keyFor(date) {
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  }
+  function todayKey() { return keyFor(new Date()); }
+  function formatDate(date) {
+    var months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    return date.getDate() + ' ' + months[date.getMonth()];
+  }
+
+  function saveState() {
+    var json = JSON.stringify(state);
+    if (tg && tg.CloudStorage) {
+      tg.CloudStorage.setItem(STORAGE_KEY, json, function () {});
+    } else {
+      localStorage.setItem(STORAGE_KEY, json);
+    }
+  }
+
+  function loadState(done) {
+    if (tg && tg.CloudStorage) {
+      tg.CloudStorage.getItem(STORAGE_KEY, function (err, value) {
+        if (!err && value) { try { state = JSON.parse(value); } catch (e) {} }
+        done();
+      });
+    } else {
+      var value = localStorage.getItem(STORAGE_KEY);
+      if (value) { try { state = JSON.parse(value); } catch (e) {} }
+      done();
+    }
+  }
+
+  function toggle(name) {
+    var key = todayKey();
+    if (!state.log[key]) state.log[key] = [];
+    var idx = state.log[key].indexOf(name);
+    if (idx === -1) state.log[key].push(name); else state.log[key].splice(idx, 1);
+    saveState();
+    render();
+  }
+
+  function addPill() {
+    var input = document.getElementById('new-pill');
+    var name = input.value.trim();
+    if (!name) return;
+    if (state.pills.indexOf(name) === -1) state.pills.push(name);
+    input.value = '';
+    saveState();
+    render();
+  }
+
+  function renderHistory() {
+    var box = document.getElementById('history');
+    box.innerHTML = '';
+    for (var i = 1; i <= 7; i++) {
+      var d = new Date();
+      d.setDate(d.getDate() - i);
+      var key = keyFor(d);
+      var taken = state.log[key] || [];
+      var row = document.createElement('div');
+      row.className = 'history-row';
+      var left = document.createElement('span');
+      left.textContent = formatDate(d);
+      var right = document.createElement('span');
+      right.textContent = state.pills.length
+        ? taken.length + ' из ' + state.pills.length
+        : '—';
+      row.appendChild(left);
+      row.appendChild(right);
+      box.appendChild(row);
+    }
+  }
+
+  function render() {
+    var key = todayKey();
+    var takenToday = state.log[key] || [];
+    var list = document.getElementById('pill-list');
+    list.innerHTML = '';
+    state.pills.forEach(function (name) {
+      var taken = takenToday.indexOf(name) !== -1;
+      var item = document.createElement('button');
+      item.className = 'pill' + (taken ? ' taken' : '');
+      item.textContent = (taken ? '✓ ' : '') + name;
+      item.onclick = function () { toggle(name); };
+      list.appendChild(item);
+    });
+    document.getElementById('empty').style.display = state.pills.length ? 'none' : 'block';
+    document.getElementById('date-label').textContent = formatDate(new Date());
+    renderHistory();
+  }
+
+  document.getElementById('add-btn').addEventListener('click', addPill);
+  document.getElementById('new-pill').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') addPill();
+  });
+  document.getElementById('history-toggle').addEventListener('click', function () {
+    var box = document.getElementById('history');
+    var visible = box.style.display === 'block';
+    box.style.display = visible ? 'none' : 'block';
+    this.textContent = visible ? 'Показать историю за 7 дней' : 'Скрыть историю';
+  });
+
+  loadState(render);
+</script>
+</body>
+</html>
