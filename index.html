@@ -127,8 +127,8 @@
     width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
     background: var(--bg); color: var(--blue); font-size: 13.5px; cursor: pointer; margin-bottom: 16px;
   }
-  #sleep-export-area {
-    display: none; width: 100%; min-height: 180px; background: var(--bg); border: 1px solid var(--border);
+  .export-area {
+    display: none; width: 100%; min-height: 140px; background: var(--bg); border: 1px solid var(--border);
     border-radius: 10px; color: var(--ink); font-family: monospace; font-size: 12px; padding: 10px;
     margin-bottom: 16px; line-height: 1.6;
   }
@@ -179,6 +179,22 @@
         <input id="new-pill" type="text" placeholder="Добавить лекарство">
         <button id="add-btn" aria-label="Добавить">+</button>
       </div>
+      <button type="button" class="export-btn" id="pills-export-btn" style="margin-top:14px;">Собрать сводку по лекарствам</button>
+      <textarea id="pills-export-area" class="export-area" readonly></textarea>
+    </div>
+
+    <div class="section">
+      <p class="section-title">Боль внизу живота</p>
+      <div class="row">
+        <label>Была боль сегодня</label>
+        <div class="chips" id="pain-chips"></div>
+      </div>
+      <div class="row">
+        <label for="pain-comment">Комментарий</label>
+        <textarea id="pain-comment" placeholder="Необязательно — что угодно важное"></textarea>
+      </div>
+      <button type="button" class="export-btn" id="pain-export-btn">Собрать сводку по боли</button>
+      <textarea id="pain-export-area" class="export-area" readonly></textarea>
     </div>
 
     <div class="section">
@@ -225,6 +241,8 @@
 
       <button type="button" class="save-btn" id="save-emotion-btn">Сохранить запись</button>
       <div class="status-msg" id="emotion-status-msg"></div>
+      <button type="button" class="export-btn" id="emotion-export-btn" style="margin-top:14px;">Собрать сводку по эмоциям</button>
+      <textarea id="emotion-export-area" class="export-area" readonly></textarea>
 
       <p class="diary-title" id="emotion-diary-title" style="display:none;">История эмоций</p>
       <div id="emotion-history-list"></div>
@@ -241,7 +259,7 @@
       </div>
 
       <button type="button" class="export-btn" id="export-btn">Собрать сводку для врача</button>
-      <textarea id="sleep-export-area" readonly></textarea>
+      <textarea id="sleep-export-area" class="export-area" readonly></textarea>
 
       <div class="row row-pair">
         <div><label for="f-date">Дата</label><input type="date" id="f-date"></div>
@@ -265,6 +283,22 @@
             <span class="slider-val" id="f-rested-val">3</span>
           </div>
         </div>
+      </div>
+
+      <div class="section-label">Страх перед сном</div>
+      <div class="chips">
+        <button type="button" class="chip" id="sleepfear-yes">Был</button>
+        <button type="button" class="chip selected" id="sleepfear-no">Не было</button>
+      </div>
+      <div class="subfields" id="sleepfear-fields">
+        <div class="row" style="margin-top:12px;">
+          <label>Насколько сильно</label>
+          <div class="slider-row">
+            <input type="range" id="f-sleepfear-intensity" min="1" max="5" value="3" step="1">
+            <span class="slider-val" id="f-sleepfear-intensity-val">3</span>
+          </div>
+        </div>
+        <div class="row"><label for="f-sleepfear-note">Что именно пугает</label><textarea id="f-sleepfear-note" placeholder="Необязательно"></textarea></div>
       </div>
 
       <div class="section-label">Содержание сна</div>
@@ -349,6 +383,12 @@
 
     <button id="history-toggle">Показать историю приёма за 7 дней</button>
     <div id="history"></div>
+
+    <div class="section">
+      <p class="section-title">Общая сводка</p>
+      <button type="button" class="export-btn" id="all-export-btn">Собрать сводку по всем разделам</button>
+      <textarea id="all-export-area" class="export-area" readonly></textarea>
+    </div>
   </div>
 
 <script>
@@ -371,8 +411,8 @@
     'Усталость в теле', 'Боль в животе', 'Дрожь в руках', 'Слабость', 'Покалывание'
   ];
 
-  var state = { pills: DEFAULT_PILLS.slice(), log: {}, emotionEntries: [], sleepEntries: [] };
-  var sleepForm = { fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
+  var state = { pills: DEFAULT_PILLS.slice(), log: {}, pain: {}, emotionEntries: [], sleepEntries: [] };
+  var sleepForm = { sleepfear: false, fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
   var emotionTagsSelected = [];
   var physicalTagsSelected = [];
 
@@ -407,6 +447,7 @@
           var parsed = JSON.parse(value);
           state.pills = parsed.pills || state.pills;
           state.log = parsed.log || {};
+          state.pain = parsed.pain || {};
           state.emotionEntries = Array.isArray(parsed.emotionEntries) ? parsed.emotionEntries : [];
           state.sleepEntries = Array.isArray(parsed.sleepEntries) ? parsed.sleepEntries : [];
         } catch (e) {}
@@ -471,10 +512,50 @@
     document.getElementById('empty').style.display = state.pills.length ? 'none' : 'block';
   }
 
+  function getDayPain(key) {
+    if (!state.pain[key]) state.pain[key] = { hasPain: null, comment: '' };
+    return state.pain[key];
+  }
+
+  function setPain(val) {
+    var key = todayKey();
+    var day = getDayPain(key);
+    day.hasPain = day.hasPain === val ? null : val;
+    saveState();
+    renderPain();
+    renderHistory();
+  }
+
+  function renderPain() {
+    var key = todayKey();
+    var day = getDayPain(key);
+    var box = document.getElementById('pain-chips');
+    box.innerHTML = '';
+    [['Да', true], ['Нет', false]].forEach(function (pair) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (day.hasPain === pair[1] ? ' selected' : '');
+      chip.textContent = pair[0];
+      chip.addEventListener('click', function () { setPain(pair[1]); });
+      box.appendChild(chip);
+    });
+    var comment = document.getElementById('pain-comment');
+    if (document.activeElement !== comment) comment.value = day.comment || '';
+  }
+
+  document.getElementById('pain-comment').addEventListener('blur', function () {
+    getDayPain(todayKey()).comment = this.value;
+    saveState();
+  });
+
   function summaryFor(date) {
     var key = keyFor(date);
+    var parts = [];
     var taken = state.log[key] || [];
-    return state.pills.length ? (taken.length + ' из ' + state.pills.length) : 'нет записей';
+    if (state.pills.length) parts.push(taken.length + ' из ' + state.pills.length);
+    var pain = state.pain[key];
+    if (pain && pain.hasPain !== null && pain.hasPain !== undefined) parts.push('боль: ' + (pain.hasPain ? 'да' : 'нет'));
+    return parts.length ? parts.join(' · ') : 'нет записей';
   }
 
   function renderHistory() {
@@ -699,7 +780,7 @@
     noEl.classList.toggle('selected', !val);
     fieldsEl.classList.toggle('shown', val);
   }
-  ['fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
+  ['sleepfear', 'fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
     var yesEl = document.getElementById(key + '-yes');
     var noEl = document.getElementById(key + '-no');
     var fieldsEl = document.getElementById(key + '-fields');
@@ -707,7 +788,7 @@
     noEl.addEventListener('click', function () { setSleepBool(key, false, yesEl, noEl, fieldsEl); });
   });
 
-  ['f-stress', 'f-rested', 'f-fear-intensity'].forEach(function (id) {
+  ['f-stress', 'f-rested', 'f-sleepfear-intensity', 'f-fear-intensity'].forEach(function (id) {
     var input = document.getElementById(id);
     var out = document.getElementById(id + '-val');
     input.addEventListener('input', function () { out.textContent = input.value; });
@@ -727,6 +808,8 @@
     document.querySelectorAll('#recall-group .chip').forEach(function (b) { b.classList.remove('selected'); });
     document.querySelector('#recall-group .chip[data-recall="none"]').classList.add('selected');
     document.getElementById('recall-fields').classList.remove('shown');
+    document.getElementById('f-sleepfear-intensity').value = 3; document.getElementById('f-sleepfear-intensity-val').textContent = '3';
+    document.getElementById('f-sleepfear-note').value = '';
     document.getElementById('f-fear-intensity').value = 3; document.getElementById('f-fear-intensity-val').textContent = '3';
     document.getElementById('f-fear-physical').checked = false;
     document.getElementById('f-halluc-fear').checked = false;
@@ -734,8 +817,8 @@
     document.getElementById('f-scream-who').value = '';
     document.getElementById('f-walk-detail').value = '';
     document.getElementById('f-notes').value = '';
-    sleepForm = { fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
-    ['fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
+    sleepForm = { sleepfear: false, fear: false, halluc: false, scream: false, walk: false, recall: 'none', motifs: [] };
+    ['sleepfear', 'fear', 'halluc', 'scream', 'walk'].forEach(function (key) {
       document.getElementById(key + '-yes').classList.remove('selected');
       document.getElementById(key + '-no').classList.add('selected');
       document.getElementById(key + '-fields').classList.remove('shown');
@@ -761,6 +844,9 @@
       recall: sleepForm.recall,
       content: sleepForm.recall !== 'none' ? document.getElementById('f-content').value.trim() : '',
       motifs: sleepForm.recall !== 'none' ? motifs : [],
+      sleepFear: sleepForm.sleepfear,
+      sleepFearIntensity: sleepForm.sleepfear ? Number(document.getElementById('f-sleepfear-intensity').value) : null,
+      sleepFearNote: sleepForm.sleepfear ? document.getElementById('f-sleepfear-note').value.trim() : '',
       fear: sleepForm.fear,
       fearIntensity: sleepForm.fear ? Number(document.getElementById('f-fear-intensity').value) : null,
       fearPhysical: sleepForm.fear ? document.getElementById('f-fear-physical').checked : false,
@@ -806,6 +892,7 @@
       metaBits.push(recallLabel);
 
       var tagsHtml = '';
+      if (e.sleepFear) tagsHtml += '<span class="tag">страх сна</span>';
       if (e.fear) tagsHtml += '<span class="tag">ужас</span>';
       if (e.halluc) tagsHtml += '<span class="tag">феномены</span>';
       if (e.scream) tagsHtml += '<span class="tag">крик</span>';
@@ -813,6 +900,7 @@
 
       var detail = '<p><b>Тревога перед сном:</b> ' + e.stress + '/5, <b>отдых утром:</b> ' + e.rested + '/5</p>';
       if (e.hoursPrev) detail += '<p><b>Сон:</b> ' + e.hoursPrev + ' ч</p>';
+      if (e.sleepFear) detail += '<p><b>Страх перед сном:</b> ' + e.sleepFearIntensity + '/5' + (e.sleepFearNote ? ' — ' + escapeHtml(e.sleepFearNote) : '') + '</p>';
       detail += '<p><b>Запомнился сон:</b> ' + recallLabel + '</p>';
       if (e.content) detail += '<p><b>Сюжет:</b> ' + escapeHtml(e.content) + '</p>';
       if (e.motifs && e.motifs.length) detail += '<p><b>Мотивы:</b> ' + e.motifs.map(escapeHtml).join(', ') + '</p>';
@@ -843,13 +931,8 @@
     });
   }
 
-  function exportSleepSummary() {
-    var area = document.getElementById('sleep-export-area');
-    if (!state.sleepEntries.length) {
-      area.style.display = 'block';
-      area.value = 'Записей пока нет.';
-      return;
-    }
+  function buildSleepSummary() {
+    if (!state.sleepEntries.length) return 'ДНЕВНИК СНА — сводка\nЗаписей нет.';
     var sorted = state.sleepEntries.slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
     var out = 'ДНЕВНИК СНА — сводка\nЗаписей: ' + sorted.length + '\n\n';
     sorted.forEach(function (e) {
@@ -857,6 +940,7 @@
       out += 'Тревога перед сном: ' + e.stress + '/5. Отдых утром: ' + e.rested + '/5.';
       if (e.hoursPrev) out += ' Сон: ' + e.hoursPrev + ' ч.';
       out += '\n';
+      if (e.sleepFear) out += 'Страх перед сном: интенсивность ' + e.sleepFearIntensity + '/5' + (e.sleepFearNote ? ' — ' + e.sleepFearNote : '') + '\n';
       var recallLabel = e.recall === 'vivid' ? 'помню в деталях' : e.recall === 'vague' ? 'помню смутно' : 'не помню';
       out += 'Сон: ' + recallLabel + '.\n';
       if (e.content) out += 'Сюжет: ' + e.content + '\n';
@@ -868,18 +952,118 @@
       if (e.notes) out += 'Заметки: ' + e.notes + '\n';
       out += '\n';
     });
+    return out.trim();
+  }
+
+  function exportSleepSummary() {
+    var area = document.getElementById('sleep-export-area');
     area.style.display = 'block';
-    area.value = out;
+    area.value = buildSleepSummary();
+    area.focus();
+    area.select();
+  }
+
+  function buildPillsSummary() {
+    var dates = Object.keys(state.log).sort();
+    if (!dates.length || !state.pills.length) return 'ЛЕКАРСТВА — сводка\nЗаписей нет.';
+    var out = 'ЛЕКАРСТВА — сводка\nОтслеживается: ' + state.pills.join(', ') + '\nДней с записями: ' + dates.length + '\n\n';
+    dates.forEach(function (key) {
+      var taken = state.log[key] || [];
+      out += key + ': ' + (taken.length ? taken.join(', ') : 'ничего не отмечено') + '\n';
+    });
+    out += '\nИтого по каждому пункту:\n';
+    state.pills.forEach(function (name) {
+      var count = dates.filter(function (key) { return (state.log[key] || []).indexOf(name) !== -1; }).length;
+      out += '— ' + name + ': ' + count + ' из ' + dates.length + ' дней\n';
+    });
+    return out.trim();
+  }
+
+  function exportPillsSummary() {
+    var area = document.getElementById('pills-export-area');
+    area.style.display = 'block';
+    area.value = buildPillsSummary();
+    area.focus();
+    area.select();
+  }
+
+  function buildPainSummary() {
+    var dates = Object.keys(state.pain).filter(function (k) {
+      var d = state.pain[k];
+      return (d.hasPain !== null && d.hasPain !== undefined) || d.comment;
+    }).sort();
+    if (!dates.length) return 'БОЛЬ ВНИЗУ ЖИВОТА — сводка\nЗаписей нет.';
+    var painDays = 0;
+    var out = 'БОЛЬ ВНИЗУ ЖИВОТА — сводка\nДней с записями: ' + dates.length + '\n\n';
+    dates.forEach(function (key) {
+      var day = state.pain[key];
+      if (day.hasPain) painDays++;
+      var status = day.hasPain === true ? 'была боль' : day.hasPain === false ? 'без боли' : 'без отметки';
+      out += key + ': ' + status + (day.comment ? ' — ' + day.comment : '') + '\n';
+    });
+    out += '\nВсего дней с болью: ' + painDays + ' из ' + dates.length;
+    return out.trim();
+  }
+
+  function exportPainSummary() {
+    var area = document.getElementById('pain-export-area');
+    area.style.display = 'block';
+    area.value = buildPainSummary();
+    area.focus();
+    area.select();
+  }
+
+  function buildEmotionSummary() {
+    if (!state.emotionEntries.length) return 'ЭМОЦИИ — сводка\nЗаписей нет.';
+    var sorted = state.emotionEntries.slice().sort(function (a, b) {
+      return (a.date + (a.time || '')).localeCompare(b.date + (b.time || ''));
+    });
+    var out = 'ЭМОЦИИ — сводка\nЗаписей: ' + sorted.length + '\n\n';
+    sorted.forEach(function (e) {
+      out += '— ' + e.date + (e.time ? ', ' + e.time : '') + ' —\n';
+      if (e.event) out += 'Событие: ' + e.event + '\n';
+      if (e.thoughts) out += 'Мысли: ' + e.thoughts + '\n';
+      if (e.emotionTags && e.emotionTags.length) out += 'Эмоции: ' + e.emotionTags.join(', ') + '\n';
+      if (e.emotionNote) out += 'Про эмоции: ' + e.emotionNote + '\n';
+      if (e.actions) out += 'Действия: ' + e.actions + '\n';
+      if (e.physicalTags && e.physicalTags.length) {
+        out += 'Физиологические ощущения: ' + e.physicalTags.join(', ') + (e.physical ? ' — ' + e.physical : '') + '\n';
+      } else if (e.physical) {
+        out += 'Физиологические ощущения: ' + e.physical + '\n';
+      }
+      out += '\n';
+    });
+    return out.trim();
+  }
+
+  function exportEmotionSummary() {
+    var area = document.getElementById('emotion-export-area');
+    area.style.display = 'block';
+    area.value = buildEmotionSummary();
+    area.focus();
+    area.select();
+  }
+
+  function exportAllSummary() {
+    var area = document.getElementById('all-export-area');
+    var parts = [buildPillsSummary(), buildPainSummary(), buildEmotionSummary(), buildSleepSummary()];
+    area.style.display = 'block';
+    area.value = parts.join('\n\n' + '─'.repeat(24) + '\n\n');
     area.focus();
     area.select();
   }
 
   document.getElementById('save-sleep-btn').addEventListener('click', saveSleepEntry);
   document.getElementById('export-btn').addEventListener('click', exportSleepSummary);
+  document.getElementById('pills-export-btn').addEventListener('click', exportPillsSummary);
+  document.getElementById('pain-export-btn').addEventListener('click', exportPainSummary);
+  document.getElementById('emotion-export-btn').addEventListener('click', exportEmotionSummary);
+  document.getElementById('all-export-btn').addEventListener('click', exportAllSummary);
 
   function renderAll() {
     document.getElementById('date-label').textContent = formatDate(new Date());
     renderPills();
+    renderPain();
     renderEmotionDiary();
     renderSleepDiary();
     renderHistory();
