@@ -33,6 +33,16 @@
   header { margin-bottom: 20px; }
   h1 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 22px; margin: 0 0 4px; }
   #date-label { font-size: 14px; color: var(--ink-dim); margin: 0; }
+  #save-warning {
+    display: none;
+    background: rgba(200,80,80,0.15);
+    border: 1px solid rgba(200,80,80,0.4);
+    color: var(--ink);
+    font-size: 12.5px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
 
   .section {
     background: var(--card);
@@ -170,6 +180,8 @@
       <h1>Трекер</h1>
       <p id="date-label"></p>
     </header>
+
+    <div id="save-warning" style="display:none;"></div>
 
     <div class="section">
       <p class="section-title">Лекарства</p>
@@ -395,7 +407,6 @@
   var tg = window.Telegram && window.Telegram.WebApp;
   if (tg) { tg.ready(); tg.expand(); }
 
-  var STORAGE_KEY = 'daily-tracker-v2';
   var DEFAULT_PILLS = ['Визанна', 'Витамин Д', 'Магний'];
   var MOOD_TAGS = ['Спокойствие', 'Радость', 'Грусть', 'Тревога', 'Раздражение', 'Усталость'];
   var MOOD_TAGS_EXTRA = [
@@ -431,36 +442,89 @@
     return d.innerHTML;
   }
 
-  function saveState() {
-    var json = JSON.stringify(state);
+  var OLD_STORAGE_KEY = 'daily-tracker-v2';
+  var KEY_PILLS = 'tracker-pills-v1';
+  var KEY_PAIN = 'tracker-pain-v1';
+  var KEY_EMOTIONS = 'tracker-emotions-v1';
+  var KEY_SLEEP = 'tracker-sleep-v1';
+
+  function showSaveError(msg) {
+    var el = document.getElementById('save-warning');
+    if (!el) return;
+    el.textContent = msg || 'Не удалось сохранить изменения. Попробуй ещё раз через минуту.';
+    el.style.display = 'block';
+    clearTimeout(showSaveError._t);
+    showSaveError._t = setTimeout(function () { el.style.display = 'none'; }, 6000);
+  }
+
+  function writeKey(key, json) {
     if (tg && tg.CloudStorage) {
-      tg.CloudStorage.setItem(STORAGE_KEY, json, function () {});
+      tg.CloudStorage.setItem(key, json, function (err, success) {
+        if (err || success === false) showSaveError();
+      });
     } else {
-      localStorage.setItem(STORAGE_KEY, json);
+      try { localStorage.setItem(key, json); } catch (e) { showSaveError(); }
     }
   }
 
+  function saveMedsState() { writeKey(KEY_PILLS, JSON.stringify({ pills: state.pills, log: state.log })); }
+  function savePainState() { writeKey(KEY_PAIN, JSON.stringify(state.pain)); }
+  function saveEmotionsState() { writeKey(KEY_EMOTIONS, JSON.stringify(state.emotionEntries)); }
+  function saveSleepState() { writeKey(KEY_SLEEP, JSON.stringify(state.sleepEntries)); }
+
   function loadState(done) {
-    function apply(value) {
-      if (value) {
-        try {
-          var parsed = JSON.parse(value);
-          state.pills = parsed.pills || state.pills;
-          state.log = parsed.log || {};
-          state.pain = parsed.pain || {};
-          state.emotionEntries = Array.isArray(parsed.emotionEntries) ? parsed.emotionEntries : [];
-          state.sleepEntries = Array.isArray(parsed.sleepEntries) ? parsed.sleepEntries : [];
-        } catch (e) {}
+    function applyOld(value) {
+      if (!value) return;
+      try {
+        var p = JSON.parse(value);
+        state.pills = p.pills || state.pills;
+        state.log = p.log || {};
+        state.pain = p.pain || {};
+        state.emotionEntries = Array.isArray(p.emotionEntries) ? p.emotionEntries : [];
+        state.sleepEntries = Array.isArray(p.sleepEntries) ? p.sleepEntries : [];
+      } catch (e) {}
+    }
+
+    function readKey(key, cb) {
+      if (tg && tg.CloudStorage) {
+        tg.CloudStorage.getItem(key, function (err, value) { cb(!err && value ? value : null); });
+      } else {
+        cb(localStorage.getItem(key));
       }
-      done();
     }
-    if (tg && tg.CloudStorage) {
-      tg.CloudStorage.getItem(STORAGE_KEY, function (err, value) {
-        apply(!err && value ? value : null);
+
+    function loadNew(next) {
+      var pending = 4;
+      function checkDone() { pending--; if (pending === 0) next(); }
+      readKey(KEY_PILLS, function (value) {
+        if (value) { try { var p = JSON.parse(value); state.pills = p.pills || state.pills; state.log = p.log || {}; } catch (e) {} }
+        checkDone();
       });
-    } else {
-      apply(localStorage.getItem(STORAGE_KEY));
+      readKey(KEY_PAIN, function (value) {
+        if (value) { try { state.pain = JSON.parse(value) || {}; } catch (e) {} }
+        checkDone();
+      });
+      readKey(KEY_EMOTIONS, function (value) {
+        if (value) { try { var arr = JSON.parse(value); if (Array.isArray(arr)) state.emotionEntries = arr; } catch (e) {} }
+        checkDone();
+      });
+      readKey(KEY_SLEEP, function (value) {
+        if (value) { try { var arr2 = JSON.parse(value); if (Array.isArray(arr2)) state.sleepEntries = arr2; } catch (e) {} }
+        checkDone();
+      });
     }
+
+    readKey(OLD_STORAGE_KEY, function (value) {
+      applyOld(value);
+      loadNew(function () {
+        // Ensure everything now lives under the new per-section keys.
+        saveMedsState();
+        savePainState();
+        saveEmotionsState();
+        saveSleepState();
+        done();
+      });
+    });
   }
 
   function togglePill(name) {
@@ -468,7 +532,7 @@
     if (!state.log[key]) state.log[key] = [];
     var idx = state.log[key].indexOf(name);
     if (idx === -1) state.log[key].push(name); else state.log[key].splice(idx, 1);
-    saveState();
+    saveMedsState();
     renderPills();
     renderHistory();
   }
@@ -479,7 +543,7 @@
     if (!name) return;
     if (state.pills.indexOf(name) === -1) state.pills.push(name);
     input.value = '';
-    saveState();
+    saveMedsState();
     renderPills();
   }
 
@@ -521,7 +585,7 @@
     var key = todayKey();
     var day = getDayPain(key);
     day.hasPain = day.hasPain === val ? null : val;
-    saveState();
+    savePainState();
     renderPain();
     renderHistory();
   }
@@ -545,7 +609,7 @@
 
   document.getElementById('pain-comment').addEventListener('blur', function () {
     getDayPain(todayKey()).comment = this.value;
-    saveState();
+    savePainState();
   });
 
   function summaryFor(date) {
@@ -691,7 +755,7 @@
       physical: document.getElementById('e-physical').value.trim()
     };
     state.emotionEntries.unshift(entry);
-    saveState();
+    saveEmotionsState();
     document.getElementById('emotion-status-msg').textContent = 'Сохранено';
     setTimeout(function () { document.getElementById('emotion-status-msg').textContent = ''; }, 2000);
     resetEmotionForm();
@@ -701,7 +765,7 @@
 
   function deleteEmotionEntry(id) {
     state.emotionEntries = state.emotionEntries.filter(function (e) { return e.id !== id; });
-    saveState();
+    saveEmotionsState();
     renderEmotionDiary();
   }
 
@@ -860,7 +924,7 @@
       notes: document.getElementById('f-notes').value.trim()
     };
     state.sleepEntries.unshift(entry);
-    saveState();
+    saveSleepState();
     document.getElementById('sleep-status-msg').textContent = 'Сохранено';
     setTimeout(function () { document.getElementById('sleep-status-msg').textContent = ''; }, 2000);
     resetSleepForm();
@@ -869,7 +933,7 @@
 
   function deleteSleepEntry(id) {
     state.sleepEntries = state.sleepEntries.filter(function (e) { return e.id !== id; });
-    saveState();
+    saveSleepState();
     renderSleepDiary();
   }
 
