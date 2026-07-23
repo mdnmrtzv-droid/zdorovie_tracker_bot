@@ -286,6 +286,11 @@
         </div>
       </div>
 
+      <div class="row">
+        <label for="f-mood-before">Эмоциональный фон перед сном</label>
+        <textarea id="f-mood-before" placeholder="Опиши своими словами"></textarea>
+      </div>
+
       <div class="row row-pair">
         <div><label for="f-hours">Сон, часов (если помнишь)</label><input type="number" id="f-hours" min="0" max="14" step="0.5" placeholder="6.5"></div>
         <div>
@@ -408,7 +413,7 @@
   if (tg) { tg.ready(); tg.expand(); }
 
   var DEFAULT_PILLS = ['Визанна', 'Витамин Д', 'Магний'];
-  var MOOD_TAGS = ['Спокойствие', 'Радость', 'Грусть', 'Тревога', 'Раздражение', 'Усталость'];
+  var MOOD_TAGS = ['Спокойствие', 'Радость', 'Грусть', 'Тревога', 'Злость', 'Раздражение', 'Усталость'];
   var MOOD_TAGS_EXTRA = [
     'Вина', 'Стыд', 'Обида', 'Разочарование', 'Одиночество', 'Беспомощность',
     'Растерянность', 'Смущение', 'Ревность', 'Зависть', 'Гнев', 'Страх',
@@ -469,8 +474,22 @@
 
   function saveMedsState() { writeKey(KEY_PILLS, JSON.stringify({ pills: state.pills, log: state.log })); }
   function savePainState() { writeKey(KEY_PAIN, JSON.stringify(state.pain)); }
-  function saveEmotionsState() { writeKey(KEY_EMOTIONS, JSON.stringify(state.emotionEntries)); }
-  function saveSleepState() { writeKey(KEY_SLEEP, JSON.stringify(state.sleepEntries)); }
+  function checkCapacity(json, label) {
+    if (json.length > 3000) {
+      showSaveError(label + ' скоро займёт всё доступное место (' + json.length + ' из ~4096 символов). Напиши об этом в чат с Клодом — нужно будет архивировать старые записи, чтобы новые не начали пропадать.');
+    }
+  }
+
+  function saveEmotionsState() {
+    var json = JSON.stringify(state.emotionEntries);
+    checkCapacity(json, 'Дневник эмоций');
+    writeKey(KEY_EMOTIONS, json);
+  }
+  function saveSleepState() {
+    var json = JSON.stringify(state.sleepEntries);
+    checkCapacity(json, 'Дневник сна');
+    writeKey(KEY_SLEEP, json);
+  }
 
   function loadState(done) {
     function applyOld(value) {
@@ -595,14 +614,12 @@
     var day = getDayPain(key);
     var box = document.getElementById('pain-chips');
     box.innerHTML = '';
-    [['Да', true], ['Нет', false]].forEach(function (pair) {
-      var chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'chip' + (day.hasPain === pair[1] ? ' selected' : '');
-      chip.textContent = pair[0];
-      chip.addEventListener('click', function () { setPain(pair[1]); });
-      box.appendChild(chip);
-    });
+    var chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip' + (day.hasPain === true ? ' selected' : '');
+    chip.textContent = 'Да';
+    chip.addEventListener('click', function () { setPain(true); });
+    box.appendChild(chip);
     var comment = document.getElementById('pain-comment');
     if (document.activeElement !== comment) comment.value = day.comment || '';
   }
@@ -864,6 +881,7 @@
     document.getElementById('f-date').value = todayKey();
     document.getElementById('f-bedtime').value = '';
     document.getElementById('f-stress').value = 3; document.getElementById('f-stress-val').textContent = '3';
+    document.getElementById('f-mood-before').value = '';
     document.getElementById('f-hours').value = '';
     document.getElementById('f-rested').value = 3; document.getElementById('f-rested-val').textContent = '3';
     document.getElementById('f-content').value = '';
@@ -903,6 +921,7 @@
       date: date,
       bedtime: document.getElementById('f-bedtime').value,
       stress: Number(document.getElementById('f-stress').value),
+      moodBefore: document.getElementById('f-mood-before').value.trim(),
       hoursPrev: document.getElementById('f-hours').value || null,
       rested: Number(document.getElementById('f-rested').value),
       recall: sleepForm.recall,
@@ -963,6 +982,7 @@
       if (e.walk) tagsHtml += '<span class="tag">хождение</span>';
 
       var detail = '<p><b>Тревога перед сном:</b> ' + e.stress + '/5, <b>отдых утром:</b> ' + e.rested + '/5</p>';
+      if (e.moodBefore) detail += '<p><b>Эмоциональный фон перед сном:</b> ' + escapeHtml(e.moodBefore) + '</p>';
       if (e.hoursPrev) detail += '<p><b>Сон:</b> ' + e.hoursPrev + ' ч</p>';
       if (e.sleepFear) detail += '<p><b>Страх перед сном:</b> ' + e.sleepFearIntensity + '/5' + (e.sleepFearNote ? ' — ' + escapeHtml(e.sleepFearNote) : '') + '</p>';
       detail += '<p><b>Запомнился сон:</b> ' + recallLabel + '</p>';
@@ -1004,6 +1024,7 @@
       out += 'Тревога перед сном: ' + e.stress + '/5. Отдых утром: ' + e.rested + '/5.';
       if (e.hoursPrev) out += ' Сон: ' + e.hoursPrev + ' ч.';
       out += '\n';
+      if (e.moodBefore) out += 'Эмоциональный фон перед сном: ' + e.moodBefore + '\n';
       if (e.sleepFear) out += 'Страх перед сном: интенсивность ' + e.sleepFearIntensity + '/5' + (e.sleepFearNote ? ' — ' + e.sleepFearNote : '') + '\n';
       var recallLabel = e.recall === 'vivid' ? 'помню в деталях' : e.recall === 'vague' ? 'помню смутно' : 'не помню';
       out += 'Сон: ' + recallLabel + '.\n';
